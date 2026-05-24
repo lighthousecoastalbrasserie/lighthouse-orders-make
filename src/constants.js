@@ -3,7 +3,8 @@ export const CATS = ["Produce","Dairy","Meat","Seafood","Dry Goods","Bakery","Fr
 export const CAT_CLR = {
   Produce: "#2e7d32",
   Dairy: "#1565c0",
-  Meat: "#c62828",
+    Meat: "#c62828",
+  Poultry: "#e65100",
   Seafood: "#00838f",
   "Dry Goods": "#f5a700",
   Bakery: "#e65100",
