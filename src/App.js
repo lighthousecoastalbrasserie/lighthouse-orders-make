@@ -16,7 +16,6 @@ export default function App() {
   const [pinError, setPinError] = useState("");
   const [page, setPage] = useState("count");
   const [loading, setLoading] = useState(true);
-
   const [staff, setStaff] = useState([]);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -54,7 +53,7 @@ export default function App() {
     })();
   }, []);
 
-  const handlePin = async digit => {
+  const handlePin = digit => {
     const newPin = pin + digit;
     setPin(newPin);
     setPinError("");
@@ -89,14 +88,23 @@ export default function App() {
     const { data, error } = await sb.from("products").upsert(row).select().single();
     if (error) { showToast("Error: " + error.message, true); return; }
     const psupsData = productSuppliers.filter(ps => ps.product_id === data.id);
-    const p2 = { ...data, productSuppliers: psupsData };
-    setProducts(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? p2 : x) : [...p, p2]; });
+    setProducts(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x) : [...p, { ...data, productSuppliers: psupsData }]; });
     showToast("Product saved");
   };
   const delProd = async id => {
     await sb.from("products").delete().eq("id", id);
     setProducts(p => p.filter(x => x.id !== id));
     showToast("Product removed");
+  };
+
+  const importProducts = async rows => {
+    const { error } = await sb.from("products").upsert(rows);
+    if (error) { showToast("Import error: " + error.message, true); return; }
+    setProducts(p => {
+      const newProds = rows.map(r => ({ ...r, productSuppliers: [] }));
+      const existing = p.filter(x => !rows.find(r => r.id === x.id));
+      return [...existing, ...newProds].sort((a, b) => a.name.localeCompare(b.name));
+    });
   };
 
   const saveSupplier = async sup => {
@@ -117,8 +125,8 @@ export default function App() {
     setProductSuppliers(p => [...p.filter(x => x.id !== data.id), data]);
     setProducts(p => p.map(prod => {
       if (prod.id !== ps.product_id) return prod;
-      const psupsData = [...(prod.productSuppliers || []).filter(x => x.id !== data.id), data];
-      return { ...prod, productSuppliers: psupsData };
+      const updated = [...(prod.productSuppliers || []).filter(x => x.id !== data.id), data];
+      return { ...prod, productSuppliers: updated };
     }));
   };
   const delProductSupplier = async id => {
@@ -212,36 +220,18 @@ export default function App() {
         </nav>
         <main className="main">
           {page === "count" && currentUser.can_count && (
-            <CountOrder
-              products={products}
-              suppliers={suppliers}
-              onSaveOrder={saveOrder}
-              showToast={showToast}
-              currentUser={currentUser}
-            />
+            <CountOrder products={products} suppliers={suppliers} onSaveOrder={saveOrder} showToast={showToast} currentUser={currentUser} />
           )}
           {page === "order" && currentUser.can_order && (
-            <OrderView
-              orders={orders}
-              suppliers={suppliers}
-              updateOrder={updateOrder}
-              showToast={showToast}
-              isGM={currentUser.role === "gm"}
-            />
+            <OrderView orders={orders} suppliers={suppliers} updateOrder={updateOrder} showToast={showToast} isGM={currentUser.role === "gm"} />
           )}
           {page === "manage" && currentUser.can_manage && (
             <Manage
-              staff={staff}
-              products={products}
-              suppliers={suppliers}
-              saveStaff={saveStaff}
-              delStaff={delStaff}
-              saveProd={saveProd}
-              delProd={delProd}
-              saveSupplier={saveSupplier}
-              delSupplier={delSupplier}
-              saveProductSupplier={saveProductSupplier}
-              delProductSupplier={delProductSupplier}
+              staff={staff} products={products} suppliers={suppliers}
+              saveStaff={saveStaff} delStaff={delStaff}
+              saveProd={saveProd} delProd={delProd} importProducts={importProducts}
+              saveSupplier={saveSupplier} delSupplier={delSupplier}
+              saveProductSupplier={saveProductSupplier} delProductSupplier={delProductSupplier}
               showToast={showToast}
             />
           )}
