@@ -84,8 +84,9 @@ export default function App() {
   };
 
 const saveProd = async prod => {
+    const isNew = !prod.id || !products.find(x => x.id === prod.id);
     const row = {
-      id: prod.id,
+      id: prod.id || uid(),
       name: prod.name,
       category: prod.category,
       count_note: prod.count_note || "",
@@ -96,18 +97,21 @@ const saveProd = async prod => {
       price_per_order: parseFloat(prod.price_per_order) || 0,
       price_per_count: parseFloat(prod.price_per_count) || 0,
     };
-    console.log("Saving product:", JSON.stringify(row));
-    const { data, error } = await sb.from("products").upsert(row, { onConflict: "id" }).select().single();
-    console.log("Result:", JSON.stringify(data), "Error:", JSON.stringify(error));
+    let data, error;
+    if (isNew) {
+      const res = await sb.from("products").insert(row).select().single();
+      data = res.data; error = res.error;
+    } else {
+      const res = await sb.from("products").update(row).eq("id", row.id).select().single();
+      data = res.data; error = res.error;
+    }
     if (error) { showToast("Error: " + error.message, true); return; }
     const psupsData = productSuppliers.filter(ps => ps.product_id === data.id);
     setProducts(p => {
       const ex = p.find(x => x.id === data.id);
-      return ex
-        ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x)
-        : [...p, { ...data, productSuppliers: psupsData }];
+      return ex ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x) : [...p, { ...data, productSuppliers: psupsData }];
     });
-    showToast("Product saved - " + data.category);
+    showToast("Product saved");
   };
   const delProd = async id => {
     await sb.from("products").delete().eq("id", id);
