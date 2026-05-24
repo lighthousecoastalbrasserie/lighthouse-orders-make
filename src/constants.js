@@ -1,4 +1,4 @@
-export const CATS = ["Produce","Dairy","Meat","Seafood","Dry Goods","Bakery","Frozen","Beverages","Cleaning","Other"];
+export const CATS = ["Produce","Dairy","Meat","Poultry","Seafood","Dry Goods","Bakery","Frozen","Beverages","Cleaning","Other"];
 
 export const CAT_CLR = {
   Produce: "#2e7d32",
