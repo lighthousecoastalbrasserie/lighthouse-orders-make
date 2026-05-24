@@ -84,8 +84,7 @@ export default function App() {
   };
 
 const saveProd = async prod => {
-    const isNew = !prod.id || !products.find(x => x.id === prod.id);
-  const saveProd = async prod => {
+    showToast("URL: " + SUPABASE_URL.slice(8, 30));
     const isNew = !prod.id || !products.find(x => x.id === prod.id);
     const row = {
       id: prod.id || uid(),
