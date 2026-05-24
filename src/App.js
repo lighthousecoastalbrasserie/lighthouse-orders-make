@@ -222,9 +222,8 @@ const saveProd = async prod => {
       <style>{STYLES}</style>
       <div className="layout">
         <nav className="sidebar">
-          <div className="sidebar-logo">
-            <div className="logo-main">LIGHTHOUSE</div>
-            <div className="logo-sub">Coastal Brasserie</div>
+                    <div className="sidebar-logo">
+            <img src="/logo.PNG" alt="Lighthouse" style={{ width: "100%", maxWidth: 160, display: "block", marginBottom: 4 }} />
           </div>
           {NAV.map(n => (
             <button key={n.id}
