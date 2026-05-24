@@ -196,8 +196,7 @@ const saveProd = async prod => {
       <style>{STYLES}</style>
       <div className="pin-screen">
         <div className="pin-card">
-          <div className="pin-logo">LIGHTHOUSE</div>
-          <div className="pin-sub">Coastal Brasserie</div>
+                    <img src="/pin_logo.PNG" alt="Lighthouse Food Order Guide" style={{ width: 280, display: "block", margin: "0 auto 32px" }} />
           <div className="pin-dots">
             {[0, 1, 2, 3].map(i => (
               <div key={i} className={"pin-dot" + (pin.length > i ? " filled" : "")} />
