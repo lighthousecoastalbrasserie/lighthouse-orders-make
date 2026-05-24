@@ -83,9 +83,9 @@ export default function App() {
     showToast("Staff removed");
   };
 
-  const saveProd = async prod => {
-    const row = { id: prod.id || uid(), name: prod.name, category: prod.category, count_note: prod.count_note || "", order_unit: prod.order_unit || "case", count_unit: prod.count_unit || "each", conv_factor: parseFloat(prod.conv_factor) || 1, par: parseFloat(prod.par) || 0 };
-    const { data, error } = await sb.from("products").upsert(row).select().single();
+    const saveProd = async prod => {
+    const row = { id: prod.id || uid(), name: prod.name, category: prod.category, count_note: prod.count_note || "", order_unit: prod.order_unit || "case", count_unit: prod.count_unit || "each", conv_factor: parseFloat(prod.conv_factor) || 1, par: parseFloat(prod.par) || 0, price_per_order: parseFloat(prod.price_per_order) || 0, price_per_count: parseFloat(prod.price_per_count) || 0 };
+const { data, error } = await sb.from("products").upsert(row).select().single();
     if (error) { showToast("Error: " + error.message, true); return; }
     const psupsData = productSuppliers.filter(ps => ps.product_id === data.id);
     setProducts(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x) : [...p, { ...data, productSuppliers: psupsData }]; });
@@ -97,8 +97,9 @@ export default function App() {
     showToast("Product removed");
   };
 
-  const importProducts = async rows => {
-    const { error } = await sb.from("products").upsert(rows);
+    const importProducts = async rows => {
+    const cleanRows = rows.map(r => ({ ...r, price_per_order: r.price_per_order || 0, price_per_count: r.price_per_count || 0 }));
+    const { error } = await sb.from("products").upsert(cleanRows);
     if (error) { showToast("Import error: " + error.message, true); return; }
     setProducts(p => {
       const newProds = rows.map(r => ({ ...r, productSuppliers: [] }));
