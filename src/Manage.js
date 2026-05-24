@@ -99,7 +99,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       const existing = oldSups.find(ps => ps.supplier_id === sid);
       if (!existing) {
         await saveProductSupplier({
-          id: uid(), product_id: prodId, supplier_id: sid,
+          id: uid(), product_id: saved.id, supplier_id: sid,
           price: parseFloat(prodForm.price_per_order) || 0,
           price_per_order: parseFloat(prodForm.price_per_order) || 0,
           price_per_count: parseFloat(prodForm.price_per_count) || 0,
