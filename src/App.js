@@ -85,7 +85,7 @@ export default function App() {
 
 const saveProd = async prod => {
     const row = {
-      id: prod.id || uid(),
+      id: prod.id,
       name: prod.name,
       category: prod.category,
       count_note: prod.count_note || "",
