@@ -85,7 +85,9 @@ export default function App() {
 
     const saveProd = async prod => {
     const row = { id: prod.id || uid(), name: prod.name, category: prod.category, count_note: prod.count_note || "", order_unit: prod.order_unit || "case", count_unit: prod.count_unit || "each", conv_factor: parseFloat(prod.conv_factor) || 1, par: parseFloat(prod.par) || 0, price_per_order: parseFloat(prod.price_per_order) || 0, price_per_count: parseFloat(prod.price_per_count) || 0 };
-const { data, error } = await sb.from("products").upsert(row).select().single();
+const { data, error } = prod.id
+  ? await sb.from("products").update(row).eq("id", row.id).select().single()
+  : await sb.from("products").insert(row).select().single();
     if (error) { showToast("Error: " + error.message, true); return; }
     const psupsData = productSuppliers.filter(ps => ps.product_id === data.id);
     setProducts(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x) : [...p, { ...data, productSuppliers: psupsData }]; });
