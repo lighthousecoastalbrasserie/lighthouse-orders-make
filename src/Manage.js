@@ -88,6 +88,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       price_per_order: parseFloat(prodForm.price_per_order) || 0,
       price_per_count: parseFloat(prodForm.price_per_count) || 0,
     });
+       if (!saved) { setSaving(false); return; }
     const oldSups = editing?.productSuppliers || [];
     for (const ps of oldSups) {
       if (!prodForm.supplier_ids.includes(ps.supplier_id)) {
