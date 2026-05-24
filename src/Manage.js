@@ -79,8 +79,8 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
   const handleSaveProd = async () => {
     if (!prodForm.name) return;
     setSaving(true);
-    const prodId = editing?.id || uid();
-    await saveProd({
+      const prodId = editing?.id || uid();
+    const saved = await saveProd({
       id: prodId, name: prodForm.name, category: prodForm.category,
       count_note: prodForm.count_note, order_unit: prodForm.order_unit,
       count_unit: prodForm.count_unit, conv_factor: parseFloat(prodForm.conv_factor) || 1,
