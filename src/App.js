@@ -112,7 +112,8 @@ const saveProd = async prod => {
       const ex = p.find(x => x.id === data.id);
       return ex ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x) : [...p, { ...data, productSuppliers: psupsData }];
     });
-    showToast("Product saved");
+      showToast("Product saved");
+    return data;
   };
   const delProd = async id => {
     await sb.from("products").delete().eq("id", id);
