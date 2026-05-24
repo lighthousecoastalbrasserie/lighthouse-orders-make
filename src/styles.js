@@ -99,7 +99,7 @@ tr:hover td{background:var(--surface2);}
 .spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--yellow);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .pin-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);}
-.pin-card{background:var(--surface);border-radius:20px;padding:40px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.pin-card{background:#ffffff;border-radius:20px;padding:40px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
 .pin-logo{font-family:var(--font-cond);font-size:32px;font-weight:800;color:var(--yellow);letter-spacing:2px;margin-bottom:4px;}
 .pin-sub{font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:28px;}
