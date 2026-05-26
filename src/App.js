@@ -22,6 +22,7 @@ export default function App() {
   const [productSuppliers, setProductSuppliers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [toast, setToast] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const showToast = (msg, err = false) => {
     setToast({ msg, err });
