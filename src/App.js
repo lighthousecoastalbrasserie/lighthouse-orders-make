@@ -220,8 +220,16 @@ const saveProd = async prod => {
   return (
     <>
       <style>{STYLES}</style>
-      <div className="layout">
-        <nav className="sidebar">
+          <div className="layout">
+        <div className="mobile-header">
+          <button className="hamburger" onClick={() => setMenuOpen(true)}>
+            <span /><span /><span />
+          </button>
+          <img src="/pin_logo.PNG" alt="Lighthouse" style={{ height: 32 }} />
+          <div style={{ width: 40 }} />
+        </div>
+        {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
+        <nav className={"sidebar" + (menuOpen ? " mobile-open" : "")}>
                     <div className="sidebar-logo">
             <img src="/logo.PNG" alt="Lighthouse" style={{ width: "100%", maxWidth: 160, display: "block", marginBottom: 4 }} />
           </div>
