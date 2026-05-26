@@ -37,7 +37,7 @@ input,select,textarea,button{font-family:var(--font);}
 .mobile-overlay{display:none;}
 .hamburger{display:none;}
 .mobile-header{display:none;}
-@media(max-width:1024px){
+@media(max-width:1366px){
   .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:100;transform:translateX(-100%) !important;transition:transform .3s ease;width:260px;}
   .sidebar.mobile-open{transform:translateX(0) !important;}
   .mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
