@@ -33,10 +33,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 input,select,textarea,button{font-family:var(--font);}
 .layout{display:flex;min-height:100vh;}
 .sidebar{width:220px;background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;transition:transform .3s ease;}
-.sidebar.mobile-open{transform:translateX(0);}
 .mobile-overlay{display:none;}
 .hamburger{display:none;}
 .mobile-header{display:none;}
+.desktop-cards{display:none;}
+.mobile-cards{display:none;}
 @media(max-width:1366px){
   .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:100;transform:translateX(-100%) !important;transition:transform .3s ease;width:260px;}
   .sidebar.mobile-open{transform:translateX(0) !important;}
@@ -48,13 +49,13 @@ input,select,textarea,button{font-family:var(--font);}
   .main{padding:16px;}
   .layout{flex-direction:column;}
 }
-  .sidebar.mobile-open{transform:translateX(0);}
-  .mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
-  .hamburger{display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:var(--navy);border:none;border-radius:8px;cursor:pointer;flex-direction:column;gap:5px;padding:10px;}
-  .hamburger span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;}
-  .mobile-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--navy);position:sticky;top:0;z-index:50;}
-  .mobile-header img{height:32px;}
-  .main{padding:16px;}
+@media(max-width:600px){
+  .mobile-cards{display:flex;flex-direction:column;gap:8px;}
+  .desktop-table{display:none;}
+}
+@media(min-width:601px){
+  .mobile-cards{display:none;}
+  .desktop-table{display:block;}
 }
 .sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px;}
 .logo-main{font-family:var(--font-cond);font-size:22px;font-weight:800;letter-spacing:1px;color:var(--yellow);}
@@ -123,8 +124,6 @@ tr:hover td{background:var(--surface2);}
 @keyframes spin{to{transform:rotate(360deg);}}
 .pin-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);}
 .pin-card{background:#ffffff;border-radius:20px;padding:40px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
-.pin-logo{font-family:var(--font-cond);font-size:32px;font-weight:800;color:var(--yellow);letter-spacing:2px;margin-bottom:4px;}
-.pin-sub{font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:28px;}
 .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .2s;}
 .pin-dot.filled{background:var(--yellow);border-color:var(--yellow);}
