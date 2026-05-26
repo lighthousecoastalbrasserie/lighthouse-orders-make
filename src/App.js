@@ -233,10 +233,10 @@ const saveProd = async prod => {
                     <div className="sidebar-logo">
             <img src="/logo.PNG" alt="Lighthouse" style={{ width: "100%", maxWidth: 160, display: "block", marginBottom: 4 }} />
           </div>
-          {NAV.map(n => (
+                   {NAV.map(n => (
             <button key={n.id}
               className={"nav-btn" + (page === n.id ? " active" : "")}
-              onClick={() => setPage(n.id)}>
+              onClick={() => { setPage(n.id); setMenuOpen(false); }}>
               {n.label}
             </button>
           ))}
