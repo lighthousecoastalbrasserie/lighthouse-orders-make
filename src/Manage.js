@@ -7,10 +7,12 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [csvRows, setCsvRows] = useState([]);
+  const [prodSearch, setProdSearch] = useState("");
+  const [prodCat, setProdCat] = useState("all");
   const fileRef = useRef();
 
   const [staffForm, setStaffForm] = useState({ name: "", pin: "", role: "staff", can_count: true, can_order: true, can_history: false, can_manage: false });
-  const [prodForm, setProdForm] = useState({ name: "", category: "Produce", count_note: "", order_unit: "case", count_unit: "each", conv_factor: 1, par: 0, price_per_order: 0, price_per_count: 0, default_supplier_id: "", supplier_ids: [] });
+  const [prodForm, setProdForm] = useState({ name: "", category: "PRODUCE", count_note: "", order_unit: "EA", count_unit: "CS", conv_factor: 1, par: 0, price_per_order: 0, price_per_count: 0, default_supplier_id: "", supplier_ids: [] });
   const [supForm, setSupForm] = useState({ name: "", phone: "", email: "", contact: "" });
 
   const openStaff = s => {
@@ -27,15 +29,15 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     const defaultSup = pSups.find(ps => ps.is_default);
     setProdForm(p ? {
       name: p.name, category: p.category, count_note: p.count_note || "",
-      order_unit: p.order_unit || "case", count_unit: p.count_unit || "each",
+      order_unit: p.order_unit || "EA", count_unit: p.count_unit || "CS",
       conv_factor: p.conv_factor || 1, par: p.par || 0,
       price_per_order: p.price_per_order || 0,
       price_per_count: p.price_per_count || 0,
       default_supplier_id: defaultSup?.supplier_id || pSups[0]?.supplier_id || "",
       supplier_ids: pSups.map(ps => ps.supplier_id),
     } : {
-      name: "", category: "Produce", count_note: "",
-      order_unit: "case", count_unit: "each", conv_factor: 1, par: 0,
+      name: "", category: "PRODUCE", count_note: "",
+      order_unit: "EA", count_unit: "CS", conv_factor: 1, par: 0,
       price_per_order: 0, price_per_count: 0,
       default_supplier_id: "", supplier_ids: [],
     });
@@ -79,8 +81,8 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
   const handleSaveProd = async () => {
     if (!prodForm.name) return;
     setSaving(true);
-      const prodId = editing?.id || uid();
-    const saved = await saveProd({
+    const prodId = editing?.id || uid();
+    await saveProd({
       id: prodId, name: prodForm.name, category: prodForm.category,
       count_note: prodForm.count_note, order_unit: prodForm.order_unit,
       count_unit: prodForm.count_unit, conv_factor: parseFloat(prodForm.conv_factor) || 1,
@@ -88,7 +90,6 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       price_per_order: parseFloat(prodForm.price_per_order) || 0,
       price_per_count: parseFloat(prodForm.price_per_count) || 0,
     });
-       if (!saved) { setSaving(false); return; }
     const oldSups = editing?.productSuppliers || [];
     for (const ps of oldSups) {
       if (!prodForm.supplier_ids.includes(ps.supplier_id)) {
@@ -99,7 +100,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       const existing = oldSups.find(ps => ps.supplier_id === sid);
       if (!existing) {
         await saveProductSupplier({
-          id: uid(), product_id: saved.id, supplier_id: sid,
+          id: uid(), product_id: prodId, supplier_id: sid,
           price: parseFloat(prodForm.price_per_order) || 0,
           price_per_order: parseFloat(prodForm.price_per_order) || 0,
           price_per_count: parseFloat(prodForm.price_per_count) || 0,
@@ -131,23 +132,46 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      const lines = ev.target.result.split("\n").map(l => l.trim()).filter(Boolean);
-      const hdrs = lines[0].toLowerCase().split(",").map(h => h.trim().replace(/"/g, ""));
+      const text = ev.target.result;
+      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+      const parseRow = line => {
+        const result = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            inQuotes = !inQuotes;
+          } else if (ch === "," && !inQuotes) {
+            result.push(current.trim());
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      const hdrs = parseRow(lines[0]).map(h => h.toLowerCase().trim());
       const rows = lines.slice(1).map(line => {
-        const vals = line.split(",").map(v => v.trim().replace(/"/g, ""));
+        const vals = parseRow(line);
         const row = Object.fromEntries(hdrs.map((h, j) => [h, vals[j] || ""]));
-        const po = parseFloat(row["price per order"] || row["price_per_order"] || row["price"] || "0") || 0;
+        const po = parseFloat(row["price per order"] || "0") || 0;
         const cf = parseFloat(row["conversion factor"] || row["conv_factor"] || "1") || 1;
-        const pc = parseFloat(row["price per count"] || row["price_per_count"] || "0") || (po > 0 ? parseFloat((po / cf).toFixed(4)) : 0);
+        const pc = parseFloat(row["price per count"] || "0") || (po > 0 ? parseFloat((po / cf).toFixed(4)) : 0);
         return {
           id: uid(),
           name: row["product name"] || row["name"] || "",
-          category: row["category"] || "Other",
+          category: (row["category"] || "OTHER").trim().toUpperCase(),
           count_note: row["count note"] || row["count_note"] || "",
-          order_unit: row["order unit"] || row["order_unit"] || row["unit"] || "case",
-          count_unit: row["count unit"] || row["count_unit"] || "each",
-          conv_factor: cf, par: parseFloat(row["par"]) || 0,
-          price_per_order: po, price_per_count: pc,
+          order_unit: row["order unit"] || row["order_unit"] || row["unit"] || "EA",
+          count_unit: row["count unit"] || row["count_unit"] || "CS",
+          conv_factor: cf,
+          par: parseFloat(row["par"]) || 0,
+          price_per_order: po,
+          price_per_count: pc,
         };
       }).filter(r => r.name);
       setCsvRows(rows);
@@ -165,6 +189,14 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     setSaving(false);
     showToast("Imported " + csvRows.length + " products");
   };
+
+  const filteredProds = products.filter(p => {
+    if (prodCat !== "all" && p.category !== prodCat) return false;
+    if (prodSearch && !p.name.toLowerCase().includes(prodSearch.toLowerCase())) return false;
+    return true;
+  });
+
+  const uniqueCats = [...new Set(products.map(p => p.category))].sort();
 
   const TABS = [
     { id: "staff", label: "Staff and Access" },
@@ -225,46 +257,65 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       {tab === "products" && (
         <div>
           <div className="flex justify-between items-center mb12">
-            <div className="card-hd" style={{ marginBottom: 0 }}>{products.length} Products</div>
+            <div className="card-hd" style={{ marginBottom: 0 }}>{filteredProds.length} of {products.length} Products</div>
             <div className="flex gap8">
               <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}>Import CSV</button>
               <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleCSV} />
               <button className="btn btn-yellow btn-sm" onClick={() => openProd(null)}>+ Add Product</button>
             </div>
           </div>
+
+          <div className="filter-row">
+            <input className="inp inp-sm" placeholder="Search products..." value={prodSearch}
+              onChange={e => setProdSearch(e.target.value)} style={{ maxWidth: 220 }} />
+            <select className="inp inp-sm" value={prodCat} onChange={e => setProdCat(e.target.value)} style={{ maxWidth: 200 }}>
+              <option value="all">All Categories</option>
+              {uniqueCats.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {(prodSearch || prodCat !== "all") && (
+              <button className="btn btn-ghost btn-sm" onClick={() => { setProdSearch(""); setProdCat("all"); }}>Clear</button>
+            )}
+          </div>
+
           <div className="card mb12" style={{ background: "var(--surface2)", padding: "12px 16px" }}>
             <div className="text-xs font-bold text-muted mb4">CSV FORMAT</div>
             <div className="font-mono text-xs" style={{ color: "var(--navy)" }}>
               product name, category, count note, order unit, count unit, conversion factor, par, price per order, price per count
             </div>
           </div>
+
           <div className="card">
             <div className="tbl-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Product</th><th>Category</th><th>Count Note</th><th>Units</th>
-                    <th>Price/CS</th><th>Price/Count</th><th>Par</th>
+                    <th>Product</th><th>Category</th><th>Count Note</th>
+                    <th>Order Unit</th><th>Count Unit</th><th>Conv.</th><th>Par</th>
+                    <th>Price/CS</th><th>Price/Count</th>
                     <th>Default Supplier</th><th>Also From</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map(p => {
+                  {filteredProds.map(p => {
                     const pSups = p.productSuppliers || [];
                     const defSup = pSups.find(ps => ps.is_default) || pSups[0];
                     const otherSups = pSups.filter(ps => ps.id !== defSup?.id);
                     return (
                       <tr key={p.id}>
                         <td className="font-bold">{p.name}</td>
-                        <td><span className="flex items-center gap4"><span className="cat-dot" style={{ background: cClr(p.category) }} />{p.category}</span></td>
-                        <td className="text-xs font-mono" style={{ color: "var(--blue)" }}>{p.count_note || "-"}</td>
-                        <td className="font-mono text-xs text-muted">
-                          {p.order_unit}/{p.count_unit}
-                          <div style={{ fontSize: 10, color: "var(--muted)" }}>x{p.conv_factor}</div>
+                        <td>
+                          <span className="flex items-center gap4">
+                            <span className="cat-dot" style={{ background: cClr(p.category) }} />
+                            {p.category}
+                          </span>
                         </td>
-                        <td className="font-mono font-bold" style={{ color: "var(--navy)" }}>{p.price_per_order > 0 ? f$(p.price_per_order) : <span className="text-muted">-</span>}</td>
+                        <td className="text-xs font-mono" style={{ color: "var(--blue)" }}>{p.count_note || "-"}</td>
+                        <td className="font-mono text-xs text-muted">{p.order_unit}</td>
+                        <td className="font-mono text-xs text-muted">{p.count_unit}</td>
+                        <td className="font-mono text-xs text-muted">x{p.conv_factor}</td>
+                        <td className="font-mono text-xs">{p.par}</td>
+                        <td className="font-mono" style={{ color: "var(--navy)" }}>{p.price_per_order > 0 ? f$(p.price_per_order) : <span className="text-muted">-</span>}</td>
                         <td className="font-mono" style={{ color: "var(--green)" }}>{p.price_per_count > 0 ? f$(p.price_per_count) : <span className="text-muted">-</span>}</td>
-                        <td className="font-mono text-xs">{p.par} {p.count_unit}</td>
                         <td>{defSup ? <span className="badge badge-yellow">{suppliers.find(s => s.id === defSup.supplier_id)?.name || "-"}</span> : <span className="text-muted text-xs">Not set</span>}</td>
                         <td>{otherSups.map(ps => <span key={ps.id} className="badge badge-gray" style={{ marginRight: 4 }}>{suppliers.find(s => s.id === ps.supplier_id)?.name || "-"}</span>)}</td>
                         <td>
@@ -276,8 +327,8 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
                       </tr>
                     );
                   })}
-                  {products.length === 0 && (
-                    <tr><td colSpan={10} style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>No products yet - import CSV or add manually</td></tr>
+                  {filteredProds.length === 0 && (
+                    <tr><td colSpan={12} style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>No products found</td></tr>
                   )}
                 </tbody>
               </table>
@@ -369,15 +420,15 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
               <label className="lbl">Count Note</label>
               <input className="inp" value={prodForm.count_note}
                 onChange={e => setProdForm(f => ({ ...f, count_note: e.target.value }))}
-                placeholder="e.g. Count by lb, Count each piece, Count full cases only..." />
+                placeholder="e.g. Count by lb, Count each piece..." />
             </div>
-            <div className="fg"><label className="lbl">Order Unit (how you buy)</label>
+            <div className="fg"><label className="lbl">Order Unit</label>
               <input className="inp" value={prodForm.order_unit}
-                onChange={e => setProdForm(f => ({ ...f, order_unit: e.target.value }))} placeholder="case, bag, gal..." />
+                onChange={e => setProdForm(f => ({ ...f, order_unit: e.target.value }))} placeholder="EA, CS, LB..." />
             </div>
-            <div className="fg"><label className="lbl">Count Unit (how you count)</label>
+            <div className="fg"><label className="lbl">Count Unit</label>
               <input className="inp" value={prodForm.count_unit}
-                onChange={e => setProdForm(f => ({ ...f, count_unit: e.target.value }))} placeholder="lb, each, oz..." />
+                onChange={e => setProdForm(f => ({ ...f, count_unit: e.target.value }))} placeholder="CS, LB, EA..." />
             </div>
             <div className="fg">
               <label className="lbl">Conversion Factor</label>
@@ -385,7 +436,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
                 onChange={e => setProdForm(f => ({ ...f, conv_factor: parseFloat(e.target.value) || 1 }))} />
               <span className="text-xs text-muted mt4">1 {prodForm.order_unit} = {prodForm.conv_factor} {prodForm.count_unit}</span>
             </div>
-            <div className="fg"><label className="lbl">Par (in {prodForm.count_unit})</label>
+            <div className="fg"><label className="lbl">Par ({prodForm.count_unit})</label>
               <input className="inp" type="number" value={prodForm.par}
                 onChange={e => setProdForm(f => ({ ...f, par: parseFloat(e.target.value) || 0 }))} />
             </div>
@@ -411,7 +462,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
             </div>
           </div>
           <div className="divider" />
-          <div className="card-hd mb8">Suppliers — check all that carry this product</div>
+          <div className="card-hd mb8">Suppliers</div>
           <div className="flex flex-col gap8 mb16">
             {suppliers.map(s => {
               const isSelected = prodForm.supplier_ids.includes(s.id);
@@ -474,20 +525,17 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
           <div className="tbl-wrap" style={{ maxHeight: 360, overflowY: "auto" }}>
             <table>
               <thead>
-                <tr><th>Name</th><th>Category</th><th>Count Note</th><th>Order Unit</th><th>Count Unit</th><th>Conv.</th><th>Par</th><th>Price/CS</th><th>Price/Count</th></tr>
+                <tr><th>Name</th><th>Category</th><th>Order Unit</th><th>Count Unit</th><th>Conv.</th><th>Par</th></tr>
               </thead>
               <tbody>
                 {csvRows.map((r, i) => (
                   <tr key={i}>
                     <td className="font-bold">{r.name}</td>
                     <td><span className="flex items-center gap4"><span className="cat-dot" style={{ background: cClr(r.category) }} />{r.category}</span></td>
-                    <td className="text-xs font-mono" style={{ color: "var(--blue)" }}>{r.count_note || "-"}</td>
                     <td className="font-mono text-xs">{r.order_unit}</td>
                     <td className="font-mono text-xs">{r.count_unit}</td>
                     <td className="font-mono text-xs">x{r.conv_factor}</td>
                     <td className="font-mono text-xs">{r.par}</td>
-                    <td className="font-mono text-xs">{r.price_per_order > 0 ? f$(r.price_per_order) : "-"}</td>
-                    <td className="font-mono text-xs">{r.price_per_count > 0 ? f$(r.price_per_count) : "-"}</td>
                   </tr>
                 ))}
               </tbody>
