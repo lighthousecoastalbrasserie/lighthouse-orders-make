@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { f$, today, cClr, sClr } from "./constants";
+import { f$, today, cClr } from "./constants";
 
 function printPDF(order, suppliers, filterSid) {
   const supMap = Object.fromEntries(suppliers.map(s => [s.id, s]));
@@ -30,14 +30,13 @@ function printPDF(order, suppliers, filterSid) {
 
     let rows = "";
     Object.entries(cats).forEach(([cat, items]) => {
-      rows += "<tr><td colspan='5' style='background:#f0f4f8;padding:6px 12px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6b90aa;'>" + cat + "</td></tr>";
+      rows += "<tr><td colspan='4' style='background:#f0f4f8;padding:6px 12px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6b90aa;'>" + cat + "</td></tr>";
       items.forEach(it => {
         rows +=
           "<tr>" +
           "<td style='padding:10px 12px;border-bottom:1px solid #e8f0f7;font-weight:600;color:#1a2f45;'>" + it.productName + "</td>" +
           "<td style='padding:10px 12px;border-bottom:1px solid #e8f0f7;color:#6b90aa;font-family:monospace;font-size:12px;'>" + (it.countNote || "-") + "</td>" +
-          "<td style='padding:10px 12px;border-bottom:1px solid #e8f0f7;text-align:center;font-weight:700;'>" + it.qty + " " + (it.orderUnit || "case") + "</td>" +
-          "<td style='padding:10px 12px;border-bottom:1px solid #e8f0f7;text-align:right;font-family:monospace;'>" + f$(it.price) + "</td>" +
+          "<td style='padding:10px 12px;border-bottom:1px solid #e8f0f7;text-align:center;font-weight:700;'>" + it.qty + " " + (it.orderUnit || "EA") + "</td>" +
           "<td style='padding:10px 12px;border-bottom:1px solid #e8f0f7;text-align:right;font-weight:700;color:#1a2f45;'>" + f$(it.subtotal) + "</td>" +
           "</tr>";
       });
@@ -63,15 +62,14 @@ function printPDF(order, suppliers, filterSid) {
       "<table style='width:100%;border-collapse:collapse;margin-bottom:20px;'>" +
       "<thead><tr style='background:#1a2f45;color:#fff;'>" +
       "<th style='padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>Product</th>" +
-      "<th style='padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>How to Count</th>" +
-      "<th style='padding:10px 12px;text-align:center;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>Quantity</th>" +
-      "<th style='padding:10px 12px;text-align:right;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>Unit Price</th>" +
+      "<th style='padding:10px 12px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>Count Note</th>" +
+      "<th style='padding:10px 12px;text-align:center;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>Order Qty</th>" +
       "<th style='padding:10px 12px;text-align:right;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;'>Subtotal</th>" +
       "</tr></thead>" +
       "<tbody>" + rows +
       "<tr style='background:#1a2f45;color:#fff;'>" +
-      "<td colspan='3' style='padding:12px;font-weight:800;font-size:14px;'>" + (bySup[sid] || []).length + " items</td>" +
-      "<td style='padding:12px;text-align:right;font-size:12px;font-weight:700;'>TOTAL</td>" +
+      "<td colspan='2' style='padding:12px;font-weight:800;font-size:14px;'>" + (bySup[sid] || []).length + " items</td>" +
+      "<td style='padding:12px;text-align:center;font-size:12px;font-weight:700;'>TOTAL</td>" +
       "<td style='padding:12px;text-align:right;font-size:18px;font-weight:800;'>" + f$(supTotal) + "</td>" +
       "</tr></tbody></table>" +
       "<div style='padding:16px;background:#f0f4f8;border-radius:8px;font-size:12px;color:#6b90aa;margin-bottom:32px;'>" +
@@ -198,7 +196,7 @@ export default function OrderView({ orders, suppliers, updateOrder, showToast, i
                 <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 10, color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", borderBottom: "2px solid var(--border)", background: "var(--surface2)" }}>Product</th>
                 <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 10, color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", borderBottom: "2px solid var(--border)", background: "var(--surface2)" }}>Count Note</th>
                 <th style={{ padding: "8px 12px", textAlign: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", borderBottom: "2px solid var(--border)", background: "var(--surface2)" }}>Qty</th>
-                <th style={{ padding: "8px 12px", textAlign: "right", fontSize: 10, color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", borderBottom: "2px solid var(--border)", background: "var(--surface2)" }}>Price</th>
+                <th style={{ padding: "8px 12px", textAlign: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", borderBottom: "2px solid var(--border)", background: "var(--surface2)" }}>Unit</th>
                 <th style={{ padding: "8px 12px", textAlign: "right", fontSize: 10, color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", borderBottom: "2px solid var(--border)", background: "var(--surface2)" }}>Subtotal</th>
                 {editing && <th style={{ padding: "8px 12px", background: "var(--surface2)", borderBottom: "2px solid var(--border)" }}></th>}
               </tr>
@@ -211,7 +209,7 @@ export default function OrderView({ orders, suppliers, updateOrder, showToast, i
                       <span className="cat-dot" style={{ background: cClr(cat), marginRight: 6 }} />{cat}
                     </td>
                   </tr>
-                  {catItems.map(it => {
+                  {catItems.map((it, globalIdx) => {
                     const idx = editing ? editItems.findIndex(x => x.productId === it.productId && x.supplierId === it.supplierId) : -1;
                     const displayIt = editing && idx >= 0 ? editItems[idx] : it;
                     return (
@@ -237,11 +235,11 @@ export default function OrderView({ orders, suppliers, updateOrder, showToast, i
                               value={displayIt.qty}
                               onChange={e => changeQty(idx, e.target.value)} />
                           ) : (
-                            <span className="font-bold">{it.qty} {it.orderUnit}</span>
+                            <span className="font-bold">{it.qty}</span>
                           )}
                         </td>
-                        <td style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", textAlign: "right", fontFamily: "monospace" }}>
-                          {f$(displayIt.price)}
+                        <td style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", textAlign: "center", fontFamily: "monospace", fontSize: 12, color: "var(--muted)" }}>
+                          {it.orderUnit || "EA"}
                         </td>
                         <td style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 700, color: "var(--navy)" }}>
                           {f$(displayIt.subtotal)}
