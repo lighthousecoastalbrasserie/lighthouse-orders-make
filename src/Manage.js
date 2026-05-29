@@ -164,9 +164,12 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
           count_note: row["count note"] || "",
           order_unit: row["order unit"] || "EA",
           count_unit: row["count unit"] || "CS",
-          conv_factor: cf, par: parseFloat(row["par"]) || 0,
-          price_per_order: po, price_per_count: pc,
+          conv_factor: cf,
+          par: parseFloat(row["par"]) || 0,
+          price_per_order: po,
+          price_per_count: pc,
           default_supplier_id: "",
+          default_supplier_name: (row["default supplier"] || row["supplier"] || "").trim(),
         };
       }).filter(r => r.name);
       setCsvRows(rows);
@@ -178,7 +181,13 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
 
   const doImport = async () => {
     setSaving(true);
-    await importProducts(csvRows);
+    const rows = csvRows.map(r => {
+      const matchedSup = suppliers.find(s =>
+        s.name.toLowerCase().trim() === (r.default_supplier_name || "").toLowerCase().trim()
+      );
+      return { ...r, default_supplier_id: matchedSup?.id || "", default_supplier_name: undefined };
+    });
+    await importProducts(rows);
     setCsvRows([]);
     setModal(null);
     setSaving(false);
@@ -278,7 +287,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
           <div className="card mb12" style={{ background: "var(--surface2)", padding: "12px 16px" }}>
             <div className="text-xs font-bold text-muted mb4">CSV FORMAT</div>
             <div className="font-mono text-xs" style={{ color: "var(--navy)" }}>
-              product name, category, count note, order unit, count unit, conversion factor, par, price per order, price per count
+              product name, category, count note, order unit, count unit, conversion factor, par, price per order, price per count, location, default supplier
             </div>
           </div>
           <div className="card">
@@ -300,17 +309,8 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
                     return (
                       <tr key={p.id}>
                         <td className="font-bold">{p.name}</td>
-                        <td>
-                          <span className="flex items-center gap4">
-                            <span className="cat-dot" style={{ background: cClr(p.category) }} />
-                            {p.category}
-                          </span>
-                        </td>
-                        <td>
-                          {p.location
-                            ? <span className="badge badge-blue">{p.location}</span>
-                            : <span className="text-muted text-xs">-</span>}
-                        </td>
+                        <td><span className="flex items-center gap4"><span className="cat-dot" style={{ background: cClr(p.category) }} />{p.category}</span></td>
+                        <td>{p.location ? <span className="badge badge-blue" style={{ fontSize: 10 }}>{p.location}</span> : <span className="text-muted text-xs">-</span>}</td>
                         <td className="text-xs font-mono" style={{ color: "var(--blue)" }}>{p.count_note || "-"}</td>
                         <td className="font-mono text-xs text-muted">{p.order_unit}/{p.count_unit}</td>
                         <td className="font-mono text-xs text-muted">x{p.conv_factor}</td>
@@ -525,25 +525,35 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       )}
 
       {modal === "csv" && (
-        <div className="overlay"><div className="modal" style={{ maxWidth: 800 }}>
+        <div className="overlay"><div className="modal" style={{ maxWidth: 900 }}>
           <div className="modal-title">CSV Preview - {csvRows.length} products</div>
-          <div className="text-xs text-muted mb12">After import - edit each product to assign location and suppliers</div>
+          <div className="text-xs text-muted mb12">Green = supplier matched, Red = supplier not found in your list</div>
           <div className="tbl-wrap" style={{ maxHeight: 360, overflowY: "auto" }}>
             <table>
               <thead>
-                <tr><th>Name</th><th>Category</th><th>Order Unit</th><th>Count Unit</th><th>Conv.</th><th>Par</th></tr>
+                <tr><th>Name</th><th>Category</th><th>Location</th><th>Order Unit</th><th>Count Unit</th><th>Conv.</th><th>Default Supplier</th></tr>
               </thead>
               <tbody>
-                {csvRows.map((r, i) => (
-                  <tr key={i}>
-                    <td className="font-bold">{r.name}</td>
-                    <td><span className="flex items-center gap4"><span className="cat-dot" style={{ background: cClr(r.category) }} />{r.category}</span></td>
-                    <td className="font-mono text-xs">{r.order_unit}</td>
-                    <td className="font-mono text-xs">{r.count_unit}</td>
-                    <td className="font-mono text-xs">x{r.conv_factor}</td>
-                    <td className="font-mono text-xs">{r.par}</td>
-                  </tr>
-                ))}
+                {csvRows.map((r, i) => {
+                  const matchedSup = suppliers.find(s => s.name.toLowerCase().trim() === (r.default_supplier_name || "").toLowerCase().trim());
+                  return (
+                    <tr key={i}>
+                      <td className="font-bold">{r.name}</td>
+                      <td><span className="flex items-center gap4"><span className="cat-dot" style={{ background: cClr(r.category) }} />{r.category}</span></td>
+                      <td className="text-xs">{r.location || "-"}</td>
+                      <td className="font-mono text-xs">{r.order_unit}</td>
+                      <td className="font-mono text-xs">{r.count_unit}</td>
+                      <td className="font-mono text-xs">x{r.conv_factor}</td>
+                      <td>
+                        {matchedSup
+                          ? <span className="badge badge-green">{matchedSup.name}</span>
+                          : r.default_supplier_name
+                            ? <span className="badge badge-red">{r.default_supplier_name} (not found)</span>
+                            : <span className="text-muted text-xs">-</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
