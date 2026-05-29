@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { CATS, uid, f$, cClr, sClr } from "./constants";
+import { CATS, LOCATIONS, uid, f$, cClr, sClr } from "./constants";
 
 export default function Manage({ staff, products, suppliers, saveStaff, delStaff, saveProd, delProd, saveSupplier, delSupplier, saveProductSupplier, delProductSupplier, importProducts, showToast }) {
   const [tab, setTab] = useState("staff");
@@ -9,10 +9,11 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
   const [csvRows, setCsvRows] = useState([]);
   const [prodSearch, setProdSearch] = useState("");
   const [prodCat, setProdCat] = useState("all");
+  const [prodLoc, setProdLoc] = useState("all");
   const fileRef = useRef();
 
   const [staffForm, setStaffForm] = useState({ name: "", pin: "", role: "staff", can_count: true, can_order: true, can_history: false, can_manage: false });
-  const [prodForm, setProdForm] = useState({ name: "", category: "PRODUCE", count_note: "", order_unit: "EA", count_unit: "CS", conv_factor: 1, par: 0, price_per_order: 0, price_per_count: 0, default_supplier_id: "", supplier_ids: [] });
+  const [prodForm, setProdForm] = useState({ name: "", category: "PRODUCE", location: "", count_note: "", order_unit: "EA", count_unit: "CS", conv_factor: 1, par: 0, price_per_order: 0, price_per_count: 0, default_supplier_id: "", supplier_ids: [] });
   const [supForm, setSupForm] = useState({ name: "", phone: "", email: "", contact: "" });
 
   const openStaff = s => {
@@ -28,15 +29,16 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     const pSups = p ? (p.productSuppliers || []) : [];
     const defaultSup = pSups.find(ps => ps.is_default);
     setProdForm(p ? {
-      name: p.name, category: p.category, count_note: p.count_note || "",
+      name: p.name, category: p.category, location: p.location || "",
+      count_note: p.count_note || "",
       order_unit: p.order_unit || "EA", count_unit: p.count_unit || "CS",
       conv_factor: p.conv_factor || 1, par: p.par || 0,
       price_per_order: p.price_per_order || 0,
       price_per_count: p.price_per_count || 0,
-      default_supplier_id: defaultSup?.supplier_id || pSups[0]?.supplier_id || "",
+      default_supplier_id: p.default_supplier_id || defaultSup?.supplier_id || pSups[0]?.supplier_id || "",
       supplier_ids: pSups.map(ps => ps.supplier_id),
     } : {
-      name: "", category: "PRODUCE", count_note: "",
+      name: "", category: "PRODUCE", location: "", count_note: "",
       order_unit: "EA", count_unit: "CS", conv_factor: 1, par: 0,
       price_per_order: 0, price_per_count: 0,
       default_supplier_id: "", supplier_ids: [],
@@ -57,8 +59,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       const has = f.supplier_ids.includes(sid);
       const newIds = has ? f.supplier_ids.filter(x => x !== sid) : [...f.supplier_ids, sid];
       const newDefault = f.default_supplier_id === sid && has
-        ? (newIds[0] || "")
-        : (newIds.length === 1 ? newIds[0] : f.default_supplier_id);
+        ? (newIds[0] || "") : (newIds.length === 1 ? newIds[0] : f.default_supplier_id);
       return { ...f, supplier_ids: newIds, default_supplier_id: newDefault };
     });
   };
@@ -75,7 +76,6 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     setSaving(true);
     await saveStaff({ ...staffForm, id: editing?.id || uid() });
     setModal(null); setEditing(null); setSaving(false);
-    showToast("Staff saved");
   };
 
   const handleSaveProd = async () => {
@@ -84,11 +84,13 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     const prodId = editing?.id || uid();
     await saveProd({
       id: prodId, name: prodForm.name, category: prodForm.category,
-      count_note: prodForm.count_note, order_unit: prodForm.order_unit,
-      count_unit: prodForm.count_unit, conv_factor: parseFloat(prodForm.conv_factor) || 1,
+      location: prodForm.location, count_note: prodForm.count_note,
+      order_unit: prodForm.order_unit, count_unit: prodForm.count_unit,
+      conv_factor: parseFloat(prodForm.conv_factor) || 1,
       par: parseFloat(prodForm.par) || 0,
       price_per_order: parseFloat(prodForm.price_per_order) || 0,
       price_per_count: parseFloat(prodForm.price_per_count) || 0,
+      default_supplier_id: prodForm.default_supplier_id || "",
     });
     const oldSups = editing?.productSuppliers || [];
     for (const ps of oldSups) {
@@ -134,44 +136,37 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     reader.onload = ev => {
       const text = ev.target.result;
       const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-
       const parseRow = line => {
         const result = [];
         let current = "";
         let inQuotes = false;
         for (let i = 0; i < line.length; i++) {
           const ch = line[i];
-          if (ch === '"') {
-            inQuotes = !inQuotes;
-          } else if (ch === "," && !inQuotes) {
-            result.push(current.trim());
-            current = "";
-          } else {
-            current += ch;
-          }
+          if (ch === '"') { inQuotes = !inQuotes; }
+          else if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; }
+          else { current += ch; }
         }
         result.push(current.trim());
         return result;
       };
-
       const hdrs = parseRow(lines[0]).map(h => h.toLowerCase().trim());
       const rows = lines.slice(1).map(line => {
         const vals = parseRow(line);
         const row = Object.fromEntries(hdrs.map((h, j) => [h, vals[j] || ""]));
         const po = parseFloat(row["price per order"] || "0") || 0;
-        const cf = parseFloat(row["conversion factor"] || row["conv_factor"] || "1") || 1;
+        const cf = parseFloat(row["conversion factor"] || "1") || 1;
         const pc = parseFloat(row["price per count"] || "0") || (po > 0 ? parseFloat((po / cf).toFixed(4)) : 0);
         return {
           id: uid(),
           name: row["product name"] || row["name"] || "",
           category: (row["category"] || "OTHER").trim().toUpperCase(),
-          count_note: row["count note"] || row["count_note"] || "",
-          order_unit: row["order unit"] || row["order_unit"] || row["unit"] || "EA",
-          count_unit: row["count unit"] || row["count_unit"] || "CS",
-          conv_factor: cf,
-          par: parseFloat(row["par"]) || 0,
-          price_per_order: po,
-          price_per_count: pc,
+          location: (row["location"] || "").trim().toUpperCase(),
+          count_note: row["count note"] || "",
+          order_unit: row["order unit"] || "EA",
+          count_unit: row["count unit"] || "CS",
+          conv_factor: cf, par: parseFloat(row["par"]) || 0,
+          price_per_order: po, price_per_count: pc,
+          default_supplier_id: "",
         };
       }).filter(r => r.name);
       setCsvRows(rows);
@@ -192,11 +187,13 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
 
   const filteredProds = products.filter(p => {
     if (prodCat !== "all" && p.category !== prodCat) return false;
+    if (prodLoc !== "all" && p.location !== prodLoc) return false;
     if (prodSearch && !p.name.toLowerCase().includes(prodSearch.toLowerCase())) return false;
     return true;
   });
 
-  const uniqueCats = [...new Set(products.map(p => p.category))].sort();
+  const uniqueCats = [...new Set(products.map(p => p.category))].filter(Boolean).sort();
+  const uniqueLocs = [...new Set(products.map(p => p.location))].filter(Boolean).sort();
 
   const TABS = [
     { id: "staff", label: "Staff and Access" },
@@ -208,7 +205,6 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
     <div>
       <div className="page-title">Management</div>
       <div className="page-sub">GM access only</div>
-
       <div className="flex gap8 mb20">
         {TABS.map(t => (
           <button key={t.id} className={"btn btn-sm " + (tab === t.id ? "btn-navy" : "btn-ghost")} onClick={() => setTab(t.id)}>
@@ -264,33 +260,34 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
               <button className="btn btn-yellow btn-sm" onClick={() => openProd(null)}>+ Add Product</button>
             </div>
           </div>
-
           <div className="filter-row">
             <input className="inp inp-sm" placeholder="Search products..." value={prodSearch}
-              onChange={e => setProdSearch(e.target.value)} style={{ maxWidth: 220 }} />
-            <select className="inp inp-sm" value={prodCat} onChange={e => setProdCat(e.target.value)} style={{ maxWidth: 200 }}>
+              onChange={e => setProdSearch(e.target.value)} style={{ maxWidth: 200 }} />
+            <select className="inp inp-sm" value={prodCat} onChange={e => setProdCat(e.target.value)} style={{ maxWidth: 180 }}>
               <option value="all">All Categories</option>
               {uniqueCats.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            {(prodSearch || prodCat !== "all") && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setProdSearch(""); setProdCat("all"); }}>Clear</button>
+            <select className="inp inp-sm" value={prodLoc} onChange={e => setProdLoc(e.target.value)} style={{ maxWidth: 180 }}>
+              <option value="all">All Locations</option>
+              {uniqueLocs.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+            {(prodSearch || prodCat !== "all" || prodLoc !== "all") && (
+              <button className="btn btn-ghost btn-sm" onClick={() => { setProdSearch(""); setProdCat("all"); setProdLoc("all"); }}>Clear</button>
             )}
           </div>
-
           <div className="card mb12" style={{ background: "var(--surface2)", padding: "12px 16px" }}>
             <div className="text-xs font-bold text-muted mb4">CSV FORMAT</div>
             <div className="font-mono text-xs" style={{ color: "var(--navy)" }}>
               product name, category, count note, order unit, count unit, conversion factor, par, price per order, price per count
             </div>
           </div>
-
           <div className="card">
             <div className="tbl-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Product</th><th>Category</th><th>Count Note</th>
-                    <th>Order Unit</th><th>Count Unit</th><th>Conv.</th><th>Par</th>
+                    <th>Product</th><th>Category</th><th>Location</th><th>Count Note</th>
+                    <th>Units</th><th>Conv.</th><th>Par</th>
                     <th>Price/CS</th><th>Price/Count</th>
                     <th>Default Supplier</th><th>Also From</th><th></th>
                   </tr>
@@ -298,8 +295,8 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
                 <tbody>
                   {filteredProds.map(p => {
                     const pSups = p.productSuppliers || [];
-                    const defSup = pSups.find(ps => ps.is_default) || pSups[0];
-                    const otherSups = pSups.filter(ps => ps.id !== defSup?.id);
+                    const defSupId = p.default_supplier_id || pSups.find(ps => ps.is_default)?.supplier_id || pSups[0]?.supplier_id;
+                    const otherSups = pSups.filter(ps => ps.supplier_id !== defSupId);
                     return (
                       <tr key={p.id}>
                         <td className="font-bold">{p.name}</td>
@@ -309,14 +306,18 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
                             {p.category}
                           </span>
                         </td>
+                        <td>
+                          {p.location
+                            ? <span className="badge badge-blue">{p.location}</span>
+                            : <span className="text-muted text-xs">-</span>}
+                        </td>
                         <td className="text-xs font-mono" style={{ color: "var(--blue)" }}>{p.count_note || "-"}</td>
-                        <td className="font-mono text-xs text-muted">{p.order_unit}</td>
-                        <td className="font-mono text-xs text-muted">{p.count_unit}</td>
+                        <td className="font-mono text-xs text-muted">{p.order_unit}/{p.count_unit}</td>
                         <td className="font-mono text-xs text-muted">x{p.conv_factor}</td>
                         <td className="font-mono text-xs">{p.par}</td>
                         <td className="font-mono" style={{ color: "var(--navy)" }}>{p.price_per_order > 0 ? f$(p.price_per_order) : <span className="text-muted">-</span>}</td>
                         <td className="font-mono" style={{ color: "var(--green)" }}>{p.price_per_count > 0 ? f$(p.price_per_count) : <span className="text-muted">-</span>}</td>
-                        <td>{defSup ? <span className="badge badge-yellow">{suppliers.find(s => s.id === defSup.supplier_id)?.name || "-"}</span> : <span className="text-muted text-xs">Not set</span>}</td>
+                        <td>{defSupId ? <span className="badge badge-yellow">{suppliers.find(s => s.id === defSupId)?.name || "-"}</span> : <span className="text-muted text-xs">Not set</span>}</td>
                         <td>{otherSups.map(ps => <span key={ps.id} className="badge badge-gray" style={{ marginRight: 4 }}>{suppliers.find(s => s.id === ps.supplier_id)?.name || "-"}</span>)}</td>
                         <td>
                           <div className="flex gap4">
@@ -416,8 +417,13 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
                 {CATS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div className="fg" style={{ gridColumn: "1/-1" }}>
-              <label className="lbl">Count Note</label>
+            <div className="fg"><label className="lbl">Storage Location</label>
+              <select className="inp" value={prodForm.location} onChange={e => setProdForm(f => ({ ...f, location: e.target.value }))}>
+                <option value="">No location set</option>
+                {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <div className="fg"><label className="lbl">Count Note</label>
               <input className="inp" value={prodForm.count_note}
                 onChange={e => setProdForm(f => ({ ...f, count_note: e.target.value }))}
                 placeholder="e.g. Count by lb, Count each piece..." />
@@ -521,7 +527,7 @@ export default function Manage({ staff, products, suppliers, saveStaff, delStaff
       {modal === "csv" && (
         <div className="overlay"><div className="modal" style={{ maxWidth: 800 }}>
           <div className="modal-title">CSV Preview - {csvRows.length} products</div>
-          <div className="text-xs text-muted mb12">After import - edit each product to assign suppliers</div>
+          <div className="text-xs text-muted mb12">After import - edit each product to assign location and suppliers</div>
           <div className="tbl-wrap" style={{ maxHeight: 360, overflowY: "auto" }}>
             <table>
               <thead>
