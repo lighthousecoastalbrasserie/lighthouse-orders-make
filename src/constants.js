@@ -1,5 +1,7 @@
 export const CATS = ["PRODUCE","DAIRY","MEAT","POULTRY","SEAFOOD","DRY GOODS","FROZEN","NA BEVERAGES","PAPER AND DISPOSABLES","JANITORIAL","OTHER"];
 
+export const LOCATIONS = ["FREEZER","COOLER","DRY SHELF","SPICES SHELF","FOH STATION","NA BEVERAGES","DISHWASHER"];
+
 export const CAT_CLR = {
   PRODUCE: "#2e7d32",
   DAIRY: "#1565c0",
@@ -36,13 +38,5 @@ export const sClr = (sups, sid) => {
   return SUP_CLR[i >= 0 ? i % SUP_CLR.length : 0];
 };
 
-export const ROLES = {
-  GM: "gm",
-  STAFF: "staff",
-};
-
-export const PAGES = {
-  COUNT: "count",
-  ORDER: "order",
-  MANAGE: "manage",
-};
+export const ROLES = { GM: "gm", STAFF: "staff" };
+export const PAGES = { COUNT: "count", ORDER: "order", MANAGE: "manage" };
