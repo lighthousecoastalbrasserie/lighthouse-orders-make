@@ -126,23 +126,60 @@ export default function App() {
 
   const importProducts = async rows => {
     const cleanRows = rows.map(r => ({
-      ...r,
-      price_per_order: r.price_per_order || 0,
-      price_per_count: r.price_per_count || 0,
+      id: r.id,
+      name: r.name,
+      category: r.category,
       location: r.location || "",
-      default_supplier_id: "",
+      count_note: r.count_note || "",
+      order_unit: r.order_unit || "EA",
+      count_unit: r.count_unit || "CS",
+      conv_factor: parseFloat(r.conv_factor) || 1,
+      par: parseFloat(r.par) || 0,
+      price_per_order: parseFloat(r.price_per_order) || 0,
+      price_per_count: parseFloat(r.price_per_count) || 0,
+      default_supplier_id: r.default_supplier_id || "",
     }));
+
     const { error } = await sb.from("products").upsert(cleanRows);
     if (error) { showToast("Import error: " + error.message, true); return; }
+
+    // Create product_supplier links for default suppliers
+    const psLinks = cleanRows
+      .filter(r => r.default_supplier_id)
+      .map(r => ({
+        id: uid(),
+        product_id: r.id,
+        supplier_id: r.default_supplier_id,
+        price: r.price_per_order || 0,
+        price_per_order: r.price_per_order || 0,
+        price_per_count: r.price_per_count || 0,
+        is_default: true,
+      }));
+
+    if (psLinks.length > 0) {
+      await sb.from("product_suppliers").upsert(psLinks);
+    }
+
+    setProductSuppliers(p => [
+      ...p.filter(x => !psLinks.find(ps => ps.product_id === x.product_id)),
+      ...psLinks
+    ]);
+
     setProducts(p => {
-      const newProds = cleanRows.map(r => ({ ...r, productSuppliers: [] }));
+      const newProds = cleanRows.map(r => ({
+        ...r,
+        productSuppliers: psLinks.filter(ps => ps.product_id === r.id),
+      }));
       const existing = p.filter(x => !cleanRows.find(r => r.id === x.id));
       return [...existing, ...newProds].sort((a, b) => a.name.localeCompare(b.name));
     });
   };
 
   const saveSupplier = async sup => {
-    const { data, error } = await sb.from("suppliers").upsert({ id: sup.id || uid(), name: sup.name, phone: sup.phone || "", email: sup.email || "", contact: sup.contact || "" }).select().single();
+    const { data, error } = await sb.from("suppliers").upsert({
+      id: sup.id || uid(), name: sup.name,
+      phone: sup.phone || "", email: sup.email || "", contact: sup.contact || ""
+    }).select().single();
     if (error) { showToast("Error: " + error.message, true); return; }
     setSuppliers(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? data : x) : [...p, data]; });
     showToast("Supplier saved");
