@@ -78,26 +78,28 @@ export default function App() {
     if (error) { showToast("Error: " + error.message, true); return; }
     setStaff(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? data : x) : [...p, data]; });
   };
+
   const delStaff = async id => {
     await sb.from("staff").update({ active: false }).eq("id", id);
     setStaff(p => p.filter(s => s.id !== id));
     showToast("Staff removed");
   };
 
-const saveProd = async prod => {
-    showToast("URL: " + SUPABASE_URL.slice(8, 30));
+  const saveProd = async prod => {
     const isNew = !prod.id || !products.find(x => x.id === prod.id);
     const row = {
       id: prod.id || uid(),
       name: prod.name,
       category: prod.category,
+      location: prod.location || "",
       count_note: prod.count_note || "",
-      order_unit: prod.order_unit || "case",
-      count_unit: prod.count_unit || "each",
+      order_unit: prod.order_unit || "EA",
+      count_unit: prod.count_unit || "CS",
       conv_factor: parseFloat(prod.conv_factor) || 1,
       par: parseFloat(prod.par) || 0,
       price_per_order: parseFloat(prod.price_per_order) || 0,
       price_per_count: parseFloat(prod.price_per_count) || 0,
+      default_supplier_id: prod.default_supplier_id || "",
     };
     let data, error;
     if (isNew) {
@@ -113,22 +115,28 @@ const saveProd = async prod => {
       const ex = p.find(x => x.id === data.id);
       return ex ? p.map(x => x.id === data.id ? { ...data, productSuppliers: psupsData } : x) : [...p, { ...data, productSuppliers: psupsData }];
     });
-      showToast("Product saved");
     return data;
   };
+
   const delProd = async id => {
     await sb.from("products").delete().eq("id", id);
     setProducts(p => p.filter(x => x.id !== id));
     showToast("Product removed");
   };
 
-    const importProducts = async rows => {
-    const cleanRows = rows.map(r => ({ ...r, price_per_order: r.price_per_order || 0, price_per_count: r.price_per_count || 0 }));
+  const importProducts = async rows => {
+    const cleanRows = rows.map(r => ({
+      ...r,
+      price_per_order: r.price_per_order || 0,
+      price_per_count: r.price_per_count || 0,
+      location: r.location || "",
+      default_supplier_id: "",
+    }));
     const { error } = await sb.from("products").upsert(cleanRows);
     if (error) { showToast("Import error: " + error.message, true); return; }
     setProducts(p => {
-      const newProds = rows.map(r => ({ ...r, productSuppliers: [] }));
-      const existing = p.filter(x => !rows.find(r => r.id === x.id));
+      const newProds = cleanRows.map(r => ({ ...r, productSuppliers: [] }));
+      const existing = p.filter(x => !cleanRows.find(r => r.id === x.id));
       return [...existing, ...newProds].sort((a, b) => a.name.localeCompare(b.name));
     });
   };
@@ -139,6 +147,7 @@ const saveProd = async prod => {
     setSuppliers(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? data : x) : [...p, data]; });
     showToast("Supplier saved");
   };
+
   const delSupplier = async id => {
     await sb.from("suppliers").delete().eq("id", id);
     setSuppliers(p => p.filter(s => s.id !== id));
@@ -155,6 +164,7 @@ const saveProd = async prod => {
       return { ...prod, productSuppliers: updated };
     }));
   };
+
   const delProductSupplier = async id => {
     const ps = productSuppliers.find(x => x.id === id);
     await sb.from("product_suppliers").delete().eq("id", id);
@@ -173,6 +183,7 @@ const saveProd = async prod => {
     if (error) { showToast("Error: " + error.message, true); return; }
     setOrders(p => [{ ...data, items: data.items || [] }, ...p]);
   };
+
   const updateOrder = async (id, updates) => {
     const { data, error } = await sb.from("orders2").update(updates).eq("id", id).select().single();
     if (error) { showToast("Error: " + error.message, true); return; }
@@ -197,7 +208,8 @@ const saveProd = async prod => {
       <style>{STYLES}</style>
       <div className="pin-screen">
         <div className="pin-card">
-                    <img src="/pin_logo.PNG" alt="Lighthouse Food Order Guide" style={{ width: 280, display: "block", margin: "0 auto 32px" }} />
+          <img src="/pin_logo.PNG" alt="Lighthouse Food Order Guide"
+            style={{ width: 280, display: "block", margin: "0 auto 32px" }} />
           <div className="pin-dots">
             {[0, 1, 2, 3].map(i => (
               <div key={i} className={"pin-dot" + (pin.length > i ? " filled" : "")} />
@@ -220,7 +232,7 @@ const saveProd = async prod => {
   return (
     <>
       <style>{STYLES}</style>
-          <div className="layout">
+      <div className="layout">
         <div className="mobile-header">
           <button className="hamburger" onClick={() => setMenuOpen(true)}>
             <span /><span /><span />
@@ -230,10 +242,10 @@ const saveProd = async prod => {
         </div>
         {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
         <nav className={"sidebar" + (menuOpen ? " mobile-open" : "")}>
-                    <div className="sidebar-logo">
-            <img src="/logo.PNG" alt="Lighthouse" style={{ width: "100%", maxWidth: 160, display: "block", marginBottom: 4 }} />
+          <div className="sidebar-logo">
+            <img src="/logo.PNG" alt="Lighthouse" style={{ width: "100%", maxWidth: 180, display: "block" }} />
           </div>
-                   {NAV.map(n => (
+          {NAV.map(n => (
             <button key={n.id}
               className={"nav-btn" + (page === n.id ? " active" : "")}
               onClick={() => { setPage(n.id); setMenuOpen(false); }}>
