@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { CATS, f$, cClr, sClr } from "./constants";
+import { CATS, LOCATIONS, f$, cClr, sClr } from "./constants";
 
 export default function CountOrder({ products, suppliers, onSaveOrder, showToast, currentUser }) {
   const [fCat, setFCat] = useState("all");
   const [fSup, setFSup] = useState("all");
+  const [fLoc, setFLoc] = useState("all");
   const [search, setSearch] = useState("");
   const [stock, setStock] = useState({});
   const [orderQty, setOrderQty] = useState({});
@@ -14,6 +15,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
   const supMap = Object.fromEntries(suppliers.map(s => [s.id, s]));
 
   const getDefaultSup = prod => {
+    if (prod.default_supplier_id) return prod.default_supplier_id;
     const sups = prod.productSuppliers || [];
     const def = sups.find(ps => ps.is_default);
     return def ? def.supplier_id : (sups[0]?.supplier_id || "");
@@ -21,9 +23,8 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
 
   const getChosenSup = prod => orderSup[prod.id] || getDefaultSup(prod);
 
-  const getPrice = (prod, sid) => {
-    const ps = (prod.productSuppliers || []).find(x => x.supplier_id === sid);
-    return ps?.price || prod.price_per_order || 0;
+  const getPrice = prod => {
+    return prod.price_per_order || 0;
   };
 
   const filtered = useMemo(() => products.filter(p => {
@@ -32,9 +33,10 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
       const hasSup = (p.productSuppliers || []).some(ps => ps.supplier_id === fSup);
       if (!hasSup) return false;
     }
+    if (fLoc !== "all" && p.location !== fLoc) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }), [products, fCat, fSup, search]);
+  }), [products, fCat, fSup, fLoc, search]);
 
   const orderItems = useMemo(() =>
     Object.entries(orderQty)
@@ -44,7 +46,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
         if (!prod) return null;
         const sid = getChosenSup(prod);
         const qty = parseFloat(orderQty[pid]) || 0;
-        const price = getPrice(prod, sid);
+        const price = getPrice(prod);
         return { pid, prod, sid, qty, price, subtotal: qty * price };
       }).filter(Boolean),
     [orderQty, orderSup, products]
@@ -60,10 +62,12 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
       productId: o.pid,
       productName: o.prod.name,
       category: o.prod.category,
+      location: o.prod.location || "",
       supplierId: o.sid,
       supplierName: supMap[o.sid]?.name || "",
       qty: o.qty,
-      orderUnit: o.prod.order_unit || "case",
+      orderUnit: o.prod.order_unit || "EA",
+      countUnit: o.prod.count_unit || "CS",
       price: o.price,
       subtotal: o.subtotal,
       stock: parseFloat(stock[o.pid]) || 0,
@@ -78,16 +82,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
     showToast("Order saved!");
   };
 
-  const ProductRow = ({ p }) => {
-    const chosenSid = getChosenSup(p);
-    const price = getPrice(p, chosenSid);
-    const qty = parseFloat(orderQty[p.id]) || 0;
-    const subtotal = qty * price;
-    const hasOrder = qty > 0;
-    const pSups = p.productSuppliers || [];
-
-    return { p, chosenSid, price, qty, subtotal, hasOrder, pSups };
-  };
+  const uniqueLocs = [...new Set(products.map(p => p.location).filter(Boolean))].sort();
 
   return (
     <div style={{ paddingBottom: 100 }}>
@@ -106,18 +101,27 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
 
       <div className="filter-row">
         <input className="inp inp-sm" placeholder="Search..." value={search}
-          onChange={e => setSearch(e.target.value)} style={{ maxWidth: 200 }} />
+          onChange={e => setSearch(e.target.value)} style={{ maxWidth: 180 }} />
         <select className="inp inp-sm" value={fCat} onChange={e => setFCat(e.target.value)}>
           <option value="all">All Categories</option>
           {CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <select className="inp inp-sm" value={fLoc} onChange={e => setFLoc(e.target.value)}>
+          <option value="all">All Locations</option>
+          {uniqueLocs.map(l => <option key={l}>{l}</option>)}
         </select>
         <select className="inp inp-sm" value={fSup} onChange={e => setFSup(e.target.value)}>
           <option value="all">All Suppliers</option>
           {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+        {(fCat !== "all" || fLoc !== "all" || fSup !== "all" || search) && (
+          <button className="btn btn-ghost btn-sm" onClick={() => { setFCat("all"); setFLoc("all"); setFSup("all"); setSearch(""); }}>
+            Clear
+          </button>
+        )}
         {Object.values(orderQty).some(v => parseFloat(v) > 0) && (
-          <button className="btn btn-ghost btn-sm" onClick={() => { setOrderQty({}); setStock({}); }}>
-            Clear All
+          <button className="btn btn-red btn-sm" onClick={() => { setOrderQty({}); setStock({}); }}>
+            Clear Order
           </button>
         )}
       </div>
@@ -131,19 +135,20 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                 <tr>
                   <th>Product</th>
                   <th>Category</th>
+                  <th>Location</th>
                   <th>Count Note</th>
-                  <th>Unit</th>
                   <th>Supplier</th>
-                  <th>Price</th>
+                  <th>Price/CS</th>
                   <th style={{ color: "var(--blue)" }}>Stock</th>
                   <th style={{ color: "var(--green)" }}>Order Qty</th>
+                  <th>Unit</th>
                   <th>Subtotal</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(p => {
                   const chosenSid = getChosenSup(p);
-                  const price = getPrice(p, chosenSid);
+                  const price = getPrice(p);
                   const qty = parseFloat(orderQty[p.id]) || 0;
                   const subtotal = qty * price;
                   const hasOrder = qty > 0;
@@ -154,15 +159,19 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                       <td>
                         <span className="flex items-center gap4">
                           <span className="cat-dot" style={{ background: cClr(p.category) }} />
-                          {p.category}
+                          <span className="text-xs">{p.category}</span>
                         </span>
                       </td>
                       <td>
-                        {p.count_note
-                          ? <span className="text-xs font-mono" style={{ color: "var(--blue)", background: "var(--blue-dim)", padding: "2px 8px", borderRadius: 4 }}>{p.count_note}</span>
+                        {p.location
+                          ? <span className="badge badge-blue" style={{ fontSize: 10 }}>{p.location}</span>
                           : <span className="text-muted text-xs">-</span>}
                       </td>
-                      <td className="font-mono text-xs text-muted">{p.order_unit || "case"}</td>
+                      <td>
+                        {p.count_note
+                          ? <span className="text-xs font-mono" style={{ color: "var(--blue)", background: "var(--blue-dim)", padding: "2px 6px", borderRadius: 4 }}>{p.count_note}</span>
+                          : <span className="text-muted text-xs">-</span>}
+                      </td>
                       <td>
                         {pSups.length > 1 ? (
                           <select className="inp inp-sm" style={{ maxWidth: 130 }}
@@ -171,7 +180,6 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                             {pSups.map(ps => (
                               <option key={ps.supplier_id} value={ps.supplier_id}>
                                 {supMap[ps.supplier_id]?.name || ps.supplier_id}
-                                {ps.is_default ? " (default)" : ""}
                               </option>
                             ))}
                           </select>
@@ -181,7 +189,9 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                           </span>
                         )}
                       </td>
-                      <td className="font-mono font-bold">{price > 0 ? f$(price) : "-"}</td>
+                      <td className="font-mono font-bold" style={{ color: "var(--navy)" }}>
+                        {price > 0 ? f$(price) : <span className="text-muted">-</span>}
+                      </td>
                       <td>
                         <input type="number" min={0} step={0.5} placeholder="-"
                           className="stock-inp"
@@ -194,6 +204,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                           value={orderQty[p.id] ?? ""}
                           onChange={e => setOrderQty(q => ({ ...q, [p.id]: e.target.value }))} />
                       </td>
+                      <td className="font-mono text-xs text-muted">{p.order_unit || "EA"}</td>
                       <td className="font-mono font-bold" style={{ color: hasOrder ? "var(--green)" : "var(--muted)" }}>
                         {hasOrder ? f$(subtotal) : "-"}
                       </td>
@@ -201,7 +212,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>No products found</td></tr>
+                  <tr><td colSpan={10} style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>No products found</td></tr>
                 )}
               </tbody>
             </table>
@@ -213,7 +224,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
       <div className="mobile-cards">
         {filtered.map(p => {
           const chosenSid = getChosenSup(p);
-          const price = getPrice(p, chosenSid);
+          const price = getPrice(p);
           const qty = parseFloat(orderQty[p.id]) || 0;
           const subtotal = qty * price;
           const hasOrder = qty > 0;
@@ -227,11 +238,14 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
               <div className="flex items-center justify-between mb8">
                 <div>
                   <div className="font-bold" style={{ fontSize: 15 }}>{p.name}</div>
-                  <div className="flex items-center gap4 mt4">
+                  <div className="flex items-center gap4 mt4" style={{ flexWrap: "wrap" }}>
                     <span className="cat-dot" style={{ background: cClr(p.category) }} />
                     <span className="text-xs text-muted">{p.category}</span>
+                    {p.location && (
+                      <span className="badge badge-blue" style={{ fontSize: 9, padding: "1px 5px" }}>{p.location}</span>
+                    )}
                     {p.count_note && (
-                      <span className="text-xs font-mono" style={{ color: "var(--blue)", background: "var(--blue-dim)", padding: "1px 6px", borderRadius: 4, marginLeft: 4 }}>
+                      <span className="text-xs font-mono" style={{ color: "var(--blue)", background: "var(--blue-dim)", padding: "1px 6px", borderRadius: 4 }}>
                         {p.count_note}
                       </span>
                     )}
@@ -240,7 +254,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                 {hasOrder && (
                   <div className="text-right">
                     <div className="font-bold" style={{ color: "var(--green)", fontSize: 14 }}>{f$(subtotal)}</div>
-                    <div className="text-xs text-muted">{f$(price)}/{p.order_unit || "case"}</div>
+                    <div className="text-xs text-muted">{f$(price)}/{p.order_unit || "EA"}</div>
                   </div>
                 )}
               </div>
@@ -251,7 +265,6 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                     {pSups.map(ps => (
                       <option key={ps.supplier_id} value={ps.supplier_id}>
                         {supMap[ps.supplier_id]?.name || ps.supplier_id}
-                        {ps.is_default ? " (default)" : ""}
                       </option>
                     ))}
                   </select>
@@ -277,7 +290,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                     onChange={e => setOrderQty(q => ({ ...q, [p.id]: e.target.value }))} />
                 </div>
                 <div style={{ paddingTop: 18, fontSize: 11, color: "var(--muted)" }}>
-                  {p.order_unit || "case"}
+                  {p.order_unit || "EA"}
                 </div>
               </div>
             </div>
@@ -306,7 +319,7 @@ export default function CountOrder({ products, suppliers, onSaveOrder, showToast
                     <div className="text-xs text-muted">{supMap[o.sid]?.name}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">{o.qty} {o.prod.order_unit || "case"}</div>
+                    <div className="font-bold">{o.qty} {o.prod.order_unit || "EA"}</div>
                     <div className="text-xs text-muted">{f$(o.subtotal)}</div>
                   </div>
                 </div>
