@@ -176,13 +176,12 @@ export default function App() {
   };
 
   const saveSupplier = async sup => {
-    const { data, error } = await sb.from("suppliers").upsert({
-      id: sup.id || uid(), name: sup.name,
-      phone: sup.phone || "", email: sup.email || "", contact: sup.contact || ""
-    }).select().single();
+    const row = { id: sup.id || uid(), name: sup.name, phone: sup.phone || "", email: sup.email || "", contact: sup.contact || "" };
+    const { data, error } = await sb.from("suppliers").upsert(row).select().single();
     if (error) { showToast("Error: " + error.message, true); return; }
+    if (!data) { showToast("No data returned", true); return; }
     setSuppliers(p => { const ex = p.find(x => x.id === data.id); return ex ? p.map(x => x.id === data.id ? data : x) : [...p, data]; });
-    showToast("Supplier saved");
+    showToast("Saved: " + data.name);
   };
 
   const delSupplier = async id => {
